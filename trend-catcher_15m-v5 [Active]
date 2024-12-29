@@ -9,9 +9,8 @@ strategy(title='TREND-CATCHER [15m]', overlay=true, initial_capital=qty, default
 // VARIABLES & INITIALIZATION
 //---------------------------------------------
 tp = input.float(7.5, 'TAKE PROFIT (%)', minval=0, step=0.25)
-
-float step = input.float(0.05, "Radius Step", step=0.001)
-float multi = input.float(2.5, "Start Points Distance", step=0.1)
+step = input.float(0.05, "Radius Step", step=0.001)
+multi = input.float(2.5, "Start Points Distance", step=0.1)
 
 bool trend = na
 var float multi1 = 0.0
@@ -22,33 +21,31 @@ var float band = 0.0
 //---------------------------------------------
 // BAND & TREND CALCULATION
 //---------------------------------------------
-float distance = ta.sma(math.abs(high - low), 100) * multi
-float distance1 = ta.sma(math.abs(high - low), 100) * 0.2
+distance = ta.sma(math.abs(high - low), 100) * multi
+distance1 = ta.sma(math.abs(high - low), 100) * 0.2
 
-if (bar_index == 101)
+if bar_index == 101
     trend := true
     band := low * 0.8
 
-if (close < band)
+if close < band
     trend := false
-
-if (close > band)
+if close > band
     trend := true
 
-if (trend[1] == false and ta.change(trend))
+if trend[1] == false and ta.change(trend)
     band := low - distance
-
-if (trend[1] == true and ta.change(trend))
+if trend[1] == true and ta.change(trend)
     band := high + distance
 
-if (bar_index % n == 0 and trend)
+if bar_index % n == 0 and trend
     multi1 := 0.0
-    multi2 += step    
+    multi2 += step
     band += distance1 * multi2
 
-if (bar_index % n == 0 and not trend)
+if bar_index % n == 0 and not trend
     multi1 += step
-    multi2 := 0.0   
+    multi2 := 0.0
     band -= distance1 * multi1
 
 Sband = ta.sma(band, n)
@@ -60,7 +57,6 @@ band_lower = ta.sma(band - distance * 0.5, n)
 band1 = trend ? band_upper : band_lower
 
 plot(band1, color=bar_index % 2 == 0 ? color.new(chart.fg_color, 50) : na)
-
 plot1 = plot(ta.change(trend) ? na : Sband, style=plot.style_linebr, color=color.gray)
 plot2 = plot(ta.sma(hl2, 20), display=display.none)
 
@@ -69,10 +65,10 @@ fill(plot1, plot2, band, ta.sma(hl2, 20), color.new(color, 60), na)
 //---------------------------------------------
 // STOCHASTIC OSCILLATOR BY COWWATSON
 //---------------------------------------------
-length = input.int(defval=14, title='Length', group="STOCHASTIC OSCILLATOR")
-dLength = input.int(defval=3, title='D Line Length', group="STOCHASTIC OSCILLATOR")
-upperTrigger = input.int(defval=80, title='Upper Trigger Line', group="STOCHASTIC OSCILLATOR")
-lowerTrigger = input.int(defval=20, title='Lower Trigger Line', group="STOCHASTIC OSCILLATOR")
+length = input.int(14, title='Length', group="STOCHASTIC OSCILLATOR")
+dLength = input.int(3, title='D Line Length', group="STOCHASTIC OSCILLATOR")
+upperTrigger = input.int(80, title='Upper Trigger Line', group="STOCHASTIC OSCILLATOR")
+lowerTrigger = input.int(20, title='Lower Trigger Line', group="STOCHASTIC OSCILLATOR")
 
 lowVal = ta.lowest(low, length)
 highVal = ta.highest(high, length)
@@ -98,9 +94,7 @@ exit_long_mkt_conditions = (
 //---------------------------------------------
 // CALCULATION OF RISK-ADJUSTED RETURN (Sharpe Ratio)
 //---------------------------------------------
-
 annualRiskFreeRate = input.float(0.0333, 'Annual Risk-Free Rate', minval=0, step=0.001)
-
 lookbackPeriod = 5000 - 1
 
 logReturns = math.log(close / close[1])
@@ -108,13 +102,12 @@ volatility = ta.stdev(logReturns, lookbackPeriod)
 tenMonthVolatility = volatility * math.sqrt(lookbackPeriod / 10)
 
 profitRate = strategy.netprofit_percent / 100
-
 sharpeRatio = (profitRate - annualRiskFreeRate) / tenMonthVolatility
 
 var label sharpeLabel = na
 
-if (na(sharpeLabel))
-    sharpeLabel := label.new(x=bar_index, y=low, text="Sharpe Ratio: " + str.tostring(sharpeRatio, "#.##"), style=label.style_label_up, color=color.black, textcolor=color.white, size=size.normal, xloc=xloc.bar_index, yloc=yloc.price)
+if na(sharpeLabel)
+    sharpeLabel := label.new(x=bar_index, y=low, text="Sharpe Ratio: " + str.tostring(sharpeRatio, "#.##"), style=label.style_label_up, color=color.black, textcolor=color.white)
 else
     label.set_xy(sharpeLabel, bar_index, low)
     label.set_text(sharpeLabel, "Sharpe Ratio: " + str.tostring(sharpeRatio, "#.##"))
@@ -131,25 +124,24 @@ var float stopLossPrice = na
 
 var float tp_factor = 1 + tp / 100
 var float sl_factor = 1 - tp / 100
+
 var float price_factor = na
 var float split_factor = na
 var float sl_price_adjustment = na
 
-var int exitStage = 0
+var bool exitStage = false
 var bool reentryStage = false
 var bool exitLabelCreated = false
 
 var bool entryLabel = false
 var bool reentryLabel = false
 
-if (entry_long_mkt_conditions[1] and not trend[1] and strategy.opentrades[1] == 0 and bar_index[1] > 101)
+if entry_long_mkt_conditions[1] and not trend[1] and strategy.opentrades[1] == 0 and bar_index[1] > 101
     a = -2.5 / 10000
-    entry_value = if close[1] <= 250 and close[1] >= 100
+    entry_value = if close[1] >= 100 and close[1] <= 500
         math.floor(close[1] + a * math.pow(close[1] - 250, 2))
-    else if close[1] >= 500
+    else if close[1] > 500 and close[1] <= 1000
         math.floor(close[1] + a * math.pow(close[1] - 500, 2))
-    else if close[1] > 250 and close[1] < 500
-        math.floor(close[1])
     else
         close[1]
     if not entryLabel
@@ -159,14 +151,14 @@ if (entry_long_mkt_conditions[1] and not trend[1] and strategy.opentrades[1] == 
 if entry_long_mkt_conditions and not trend and strategy.opentrades == 0 and bar_index > 101
     entryPrice := (high + low) / 2
     split_factor := math.pow(10, str.length(str.tostring(int(entryPrice))) - 1)
-    price_factor := (-tp/2 + math.sqrt(math.abs(2.5 * split_factor - entryPrice) / tp) - tp / 5) / 100
+    price_factor := (-tp / (1 + tp / 10) + math.sqrt(math.abs(2.5 * split_factor - entryPrice) / tp) - tp / 5) / 100
     limitExitPrice := math.round(entryPrice * (tp_factor + price_factor), 2)
-    sl_price_adjustment := math.min(2.5 , math.min(2.5 * math.exp((-250 + entryPrice) / (tp * 10)) - 0.5, 2.5 * math.exp((500 - entryPrice) / (tp * 10)) - 0.5))
+    sl_price_adjustment := math.min(2.5, math.min(2.5 * math.exp((-250 + entryPrice) / (tp * 10)) - 0.5, 2.5 * math.exp((500 - entryPrice) / (tp * 10)) - 0.5))
     stopLossPrice := math.round(entryPrice * (sl_factor - price_factor + (entryPrice > 5 * split_factor ? tp / (250 - 5 * math.log(entryPrice)) : -tp / (500 + 10 * math.log(entryPrice)))) + sl_price_adjustment, 2)
     
     strategy.entry("L1 | " + str.tostring(limitExitPrice) + " | " + str.tostring(stopLossPrice), strategy.long, math.round(qty_entry / entryPrice))
     qty_reentry := qty - entryPrice * math.round(qty_entry / entryPrice)
-    exitStage := 0
+    exitStage := false
     reentryStage := false
     reentryLabel := false
     exitLabelCreated := false
@@ -174,11 +166,8 @@ if entry_long_mkt_conditions and not trend and strategy.opentrades == 0 and bar_
 if close < stopLossPrice and strategy.opentrades == 1
     reentryStage := true
 
-if (reentryStage[1] and trend[1] and not exit_long_mkt_conditions[1] and strategy.opentrades[1] == 1)
-    entry_value = if math.abs(open[1] - close[1]) >= 1
-        close[1] - close[1] / split_factor
-    else
-        close[1]
+if reentryStage[1] and trend[1] and not exit_long_mkt_conditions[1] and strategy.opentrades[1] == 1
+    entry_value = close[1] - math.abs(open[1] - close[1]) / 1.25
     if not reentryLabel
         label.new(bar_index[1], close[1] - 0.5, "Upcoming ReEntry | " + str.tostring(math.round(entry_value, 3 - str.length(str.tostring(int(close[1]))))), style=label.style_label_up, color=color.new(color.blue, 0), textcolor=color.white)
         reentryLabel := true
@@ -189,16 +178,11 @@ if reentryStage and trend and not exit_long_mkt_conditions and strategy.opentrad
     exitLabelCreated := false
 
 if exit_long_mkt_conditions and not trend
-    exitStage := 1
+    exitStage := true
 
-if (exitStage == 1 or exitStage == 2) and not trend and strategy.opentrades > 0
-    strategy.exit("CL", limit=limitExitPrice, stop=stopLossPrice/2)
+if exitStage == true and strategy.opentrades > 0
+    strategy.exit("CL", limit=limitExitPrice, stop=stopLossPrice / 2)
     if exitLabelCreated == false and close[1] > limitExitPrice * 0.95
-        label.new(bar_index[1], close[1] + 0.5, "Limit: " + str.tostring(math.round(math.max(limitExitPrice, close[1]) + (5 * split_factor - entryPrice) / (2.5 * entryPrice), 3 - str.length(str.tostring(int(close[1]))))), style=label.style_label_down, color=color.new(color.orange, 0), textcolor=color.white)
+        label_text = "Limit: " + str.tostring(math.round(math.max(limitExitPrice, close[1]) + split_factor * (5 * split_factor - entryPrice) / (250 * entryPrice), 3 - str.length(str.tostring(int(close[1])))))
+        label.new(bar_index[1], close[1] + 0.5, label_text, style=label.style_label_down, color=color.new(color.orange, 0), textcolor=color.white)
         exitLabelCreated := true
-else if exitStage == 1 and trend and strategy.opentrades > 0
-    strategy.cancel_all()
-    exitStage := 2
-    if exitLabelCreated
-        label.new(bar_index[1], close[1], "Limit Order Cancelled", style=label.style_xcross, color=color.new(color.red, 0), textcolor=color.white)
-        exitLabelCreated := false
